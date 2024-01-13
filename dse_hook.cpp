@@ -143,6 +143,13 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+	if (!file_exists(argv[2]))
+	{
+		printf("[!] could not find your driver.");
+		system("pause>NUL");
+		return -2;
+	}
+
 	LOAD_WINIO:
 	printf("[*] attempting to open handle to winio...\n");
 	driver_handle = (u64)CreateFileA("\\\\.\\WinIo", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -155,7 +162,7 @@ int main(int argc, char* argv[])
 		{
 			printf("[!] could not find winio driver.\n[!] please make sure \"WinIO64.sys\" is in the same folder.\n");
 			system("pause>NUL");
-			return -2;
+			return -3;
 		}
 
 		load_driver_lazy("winio_dse_hook", winio_path);
@@ -165,7 +172,7 @@ int main(int argc, char* argv[])
 	{
 		printf("[!] could not load winio driver.\n");
 		system("pause>NUL");
-		return -3;
+		return -4;
 	}
 	printf("[*] driver_handle: %p\n", driver_handle);
 
@@ -190,7 +197,7 @@ int main(int argc, char* argv[])
 	{
 		printf("[!] could not find ntoskrnl base.\n");
 		system("pause>NUL");
-		return -4;
+		return -5;
 	}
 
 	// find target physical addresses for patch
@@ -200,7 +207,7 @@ int main(int argc, char* argv[])
 	{
 		printf("[!] could not find one or both patterns.\n");
 		system("pause>NUL");
-		return -5;
+		return -6;
 	}
 
 	// save original bytes
@@ -213,16 +220,8 @@ int main(int argc, char* argv[])
 	printf("[*] patched validation routines.\n");
 
 	// start the target driver
-	if (!file_exists(argv[2]))
-	{
-		printf("[!] could not find your driver.");
-		system("pause>NUL");
-	}
-	else
-	{
-		load_driver_lazy(argv[1], argv[2]);
-		printf("[*] loaded driver!\n");
-	}
+	load_driver_lazy(argv[1], argv[2]);
+	printf("[*] loaded driver!\n");
 
 	// unpatch both functions
 	write_phys(se_validate_image_data_pa, (u64)&se_validate_image_data_original, sizeof(se_validate_image_data_original));
