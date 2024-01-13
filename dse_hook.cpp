@@ -117,24 +117,15 @@ u64 find_pattern(u64 start, u64 range, unsigned char* pattern, size_t pattern_le
 	return result;
 }
 
-//thx gpt4
-void rands(char* str, int size) {
-	const char charset[] = "abcdefghijklmnopqrstuvwxyz0123456789";
-	if (size) {
-		--size;
-		for (int n = 0; n < size; n++) {
-			int key = rand() % (int)(sizeof(charset) - 1);
-			str[n] = charset[key];
-		}
-		str[size] = '\0';
-	}
+bool file_exists(const std::string path) {
+	DWORD v0 = GetFileAttributesA(path.c_str());
+	return v0 != -1 && !(v0 & 0x00000010);
 }
 
 void load_driver_lazy(const char* driver_name, const char* bin_path)
 {
 	u64 cmdline_create_buf = (u64)malloc(strlen(driver_name) + strlen(bin_path) + 53);
 	u64 cmdline_start_buf = (u64)malloc(strlen(driver_name) + 14);
-	printf("%s\n", bin_path);
 	sprintf((char*)cmdline_create_buf, "sc create %s binpath=\"%s\" type=kernel>NUL", driver_name, bin_path);
 	sprintf((char*)cmdline_start_buf, "sc start %s>NUL", driver_name);
 	system((char*)cmdline_create_buf);
@@ -159,13 +150,22 @@ int main(int argc, char* argv[])
 	{
 		GetCurrentDirectoryA(FILENAME_MAX, winio_path);
 		strcat(winio_path, "\\WinIO64.sys");
+
+		if (!file_exists(winio_path))
+		{
+			printf("[!] could not find winio driver.\n[!] please make sure \"WinIO64.sys\" is in the same folder.\n");
+			system("pause>NUL");
+			return -2;
+		}
+
 		load_driver_lazy("winio_dse_hook", winio_path);
 		goto LOAD_WINIO;
 	}
 	if (driver_handle == -1)
 	{
 		printf("[!] could not load winio driver.\n");
-		Sleep(2000);
+		system("pause>NUL");
+		return -3;
 	}
 	printf("[*] driver_handle: %p\n", driver_handle);
 
@@ -189,8 +189,8 @@ int main(int argc, char* argv[])
 	if (!ntos_base_pa)
 	{
 		printf("[!] could not find ntoskrnl base.\n");
-		Sleep(2000);
-		return -3;
+		system("pause>NUL");
+		return -4;
 	}
 
 	// find target physical addresses for patch
@@ -199,8 +199,8 @@ int main(int argc, char* argv[])
 	if (se_validate_image_data_pa == 0 || se_validate_image_header_pa == 0)
 	{
 		printf("[!] could not find one or both patterns.\n");
-		Sleep(2000);
-		return -4;
+		system("pause>NUL");
+		return -5;
 	}
 
 	// save original bytes
@@ -213,8 +213,16 @@ int main(int argc, char* argv[])
 	printf("[*] patched validation routines.\n");
 
 	// start the target driver
-	load_driver_lazy(argv[1], argv[2]);
-	printf("[*] loaded driver!\n");
+	if (!file_exists(argv[2]))
+	{
+		printf("[!] could not find your driver.");
+		system("pause>NUL");
+	}
+	else
+	{
+		load_driver_lazy(argv[1], argv[2]);
+		printf("[*] loaded driver!\n");
+	}
 
 	// unpatch both functions
 	write_phys(se_validate_image_data_pa, (u64)&se_validate_image_data_original, sizeof(se_validate_image_data_original));
@@ -227,7 +235,8 @@ int main(int argc, char* argv[])
 	printf("[*] unloaded winio driver.\n");
 
 	printf("[*] done!\n");
-	Sleep(2000);
+	//system("pause");
+	Sleep(1000);
 
 	return 0;
 }
