@@ -12,5 +12,5 @@ we have a small time-window to place a patch and remove it again. \
 in that time we load our driver.
 
 # perks
-- bypasses VBS, KDDP and PG. \
+- bypasses VBS, KDP and PG(kinda). \
 - supports normal drivers (with driverobject).
