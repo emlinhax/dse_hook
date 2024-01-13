@@ -14,3 +14,6 @@ in that time we load our driver.
 # perks
 - bypasses VBS, KDP and PG(kinda). \
 - supports normal drivers (with driverobject).
+
+# tested on
+- Windows 10 22H2
