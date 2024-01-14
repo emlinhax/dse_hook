@@ -20,7 +20,7 @@ unsigned char se_validate_image_header_pattern[21] = { 0x48, 0x8B, 0xC4, 0x48, 0
 
 char patch[6] = {
 	0xB8, 0x00, 0x00, 0x00, 0x00,	// mov rax, 0
-	0xC3							// ret
+	0xC3				// ret
 };
 
 u64 driver_handle = -1;
