@@ -17,3 +17,4 @@ in that time we load our driver.
 
 # tested on
 - Windows 10 22H2
+- Windows 11 23H2
