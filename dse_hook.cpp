@@ -221,8 +221,6 @@ int main(int argc, char* argv[])
 	write_phys(se_validate_image_header_pa, (u64)&patch, sizeof(patch));
 	printf("[*] patched validation routines.\n");
 
-	system("pause");
-
 	// start the target driver
 	load_driver_lazy(argv[1], argv[2]);
 	printf("[*] loaded driver!\n");
