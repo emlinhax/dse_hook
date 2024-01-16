@@ -165,15 +165,14 @@ int main(int argc, char* argv[])
 			return -3;
 		}
 
+		//winio driver doesnt unload correctly sometimes. you have to stop it multiple times (?)
+		system("sc stop winio_dse_hook >NUL");
+		system("sc delete winio_dse_hook >NUL");
+
 		load_driver_lazy("winio_dse_hook", winio_path);
 		goto LOAD_WINIO;
 	}
-	if (driver_handle == -1)
-	{
-		printf("[!] could not load winio driver.\n");
-		system("pause>NUL");
-		return -4;
-	}
+
 	printf("[*] driver_handle: %p\n", driver_handle);
 
 	// ####
@@ -231,8 +230,6 @@ int main(int argc, char* argv[])
 	printf("[*] restored validation routines.\n");
 
 	// unload winio driver
-	system("sc stop winio_dse_hook >NUL");
-	Sleep(2000);
 	system("sc stop winio_dse_hook >NUL");
 	system("sc delete winio_dse_hook >NUL");
 	printf("[*] unloaded winio driver.\n");
