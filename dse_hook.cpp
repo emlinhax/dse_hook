@@ -20,7 +20,7 @@ unsigned char se_validate_image_header_pattern[21] = { 0x48, 0x8B, 0xC4, 0x48, 0
 
 char patch[6] = {
 	0xB8, 0x00, 0x00, 0x00, 0x00,	// mov rax, 0
-	0xC3							// ret
+	0xC3				// ret
 };
 
 u64 driver_handle = -1;
@@ -63,6 +63,9 @@ bool read_phys(u64 addr, u64 buf, u64 size)
 	if (linear_address == NULL)
 		return false;
 
+	if (IsBadReadPtr((void*)linear_address, 1))
+		return false;
+
 	printf("[*] mapped pa:0x%llx to va:0x%llx\n", addr, (u64)linear_address);
 	memcpy((void*)buf, (void*)linear_address, size);
 
@@ -79,6 +82,9 @@ bool write_phys(u64 addr, u64 buf, u64 size)
 
 	u64 linear_address = phys_map(packet);
 	if (linear_address == NULL)
+		return false;
+
+	if (IsBadReadPtr((void*)linear_address, 1))
 		return false;
 
 	printf("[*] mapped pa:0x%llx to va:0x%llx\n", addr, (u64)linear_address);
